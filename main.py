@@ -53,11 +53,12 @@ def projection_size() -> tuple[float, float, float, float]:
     # delta_lon = max_lon - min_lat
 
     delta = max(max_lat - min_lat, max_lon - min_lat)
+    margin = 0.2
 
-    min_lat -= delta * 0.5
-    max_lat += delta * 0.5
-    min_lon -= delta * 0.5
-    max_lon += delta * 0.5
+    min_lat -= delta * margin
+    max_lat += delta * margin
+    min_lon -= delta * margin
+    max_lon += delta * margin
 
     return min_lat, max_lat, min_lon, max_lon
 
@@ -99,7 +100,7 @@ def draw_map():
 
 
 def main():
-    asyncio.run(asyncio.run(connect_ais_stream()))
+    # asyncio.run(asyncio.run(connect_ais_stream()))
     draw_map()
 
 
