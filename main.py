@@ -18,9 +18,6 @@ gps_route = []
 kalman_route = []
 physics_route = []
 
-window = tk.Tk()
-window.title("Kalman Filter for ships")
-
 
 async def connect_ais_stream():
     async with websockets.connect("wss://stream.aisstream.io/v0/stream") as websocket:
