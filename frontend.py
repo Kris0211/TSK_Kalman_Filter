@@ -10,9 +10,13 @@ def on_click():
         print("nya")
 
 
+def draw():
+    print("haha nie.")
+
+
 if __name__ == '__main__':
     root = tk.Tk(screenName="kalman")
-    title = tk.Label(root, text="Kalman's Filter for Ships")
+    title = tk.Label(root, text="Kalman's Filter for Ships:")
     title.pack()
 
     draw_measured = tk.BooleanVar()
@@ -31,7 +35,10 @@ if __name__ == '__main__':
                          command=on_click)
     ck3.pack()
 
-    id_textbox = tk.Text(root, height=8)
+    id_textbox = tk.Text(root, height=1)
     id_textbox.pack()
+
+    button = tk.Button(text="Draw map", command=draw)
+    button.pack()
 
     root.mainloop()
