@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 import common_use_modules as utils
 
-gps_route = []
-kalman_route = []
-physics_route = []
+#gps_route = []
+#kalman_route = []
+#physics_route = []
 
 def on_click():
     if draw_measured.get():
@@ -27,7 +27,7 @@ def draw_map(gps_route, kalman_route, physics_route):
     # use low resolution coastlines.
     min_lat, max_lat, min_lon, max_lon = projection_size(gps_route)
     map = Basemap(projection='cyl', llcrnrlat=min_lat, urcrnrlat=max_lat,
-                  llcrnrlon=min_lon,urcrnrlon=max_lon, resolution='l')
+                  llcrnrlon=min_lon,urcrnrlon=max_lon, resolution='h')
     # draw coastlines, country boundaries, fill continents.
     map.drawcoastlines(linewidth=0.25)
     map.drawcountries(linewidth=0.25)
@@ -50,16 +50,25 @@ def draw_map(gps_route, kalman_route, physics_route):
     # x, y = map(lons * 180. / np.pi, lats * 180. / np.pi)
     # contour data over the map.
     # map.contour(x, y, wave + mean, 15, linewidths=1.5)
-    for i in range(0, len(gps_route) - 1):
-        map.drawgreatcircle(gps_route[i][0], gps_route[i][1], gps_route[i+1][0],
-                            gps_route[i+1][1], linewidth=1.5, color='r')
-    map.scatter([p[0] for p in gps_route], [p[1] for p in gps_route], marker='o', color='r')
+
+    gps_x = [row[0] for row in gps_route]
+    gps_y = [row[1] for row in gps_route]
+    map.plot(gps_x, gps_y, linewidth=1.5, color='r')
+    map.scatter([p[0] for p in gps_route], [p[1] for p in gps_route], marker='o', color='r', s=6)
+
+    # print(gps_route)
+    # gps_route = [[4.52, 51.83], [4.52, 51.83]]
+    # for i in range(0, len(gps_route) - 1):
+    #     print(gps_route[i][0], gps_route[i][1], gps_route[i+1][0], gps_route[i+1][1])
+    #     map.drawgreatcircle(gps_route[i][0], gps_route[i][1], gps_route[i+1][0],
+    #                         gps_route[i+1][1], linewidth=1.5, color='r')
+
     plt.title('Kalman Filter')
     plt.show()
 
 
 def projection_size(route) -> tuple[float, float, float, float]:
-    margin = 0.2
+    margin = 0.4
 
     if len(route) == 1:
         return route[0][1] - margin, route[0][1] + margin, route[0][0] - margin, route[0][0] + margin
