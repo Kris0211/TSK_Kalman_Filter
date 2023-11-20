@@ -20,6 +20,8 @@ async def connect_ais_stream():
         subscribe_message_json = json.dumps(subscribe_message)
         await websocket.send(subscribe_message_json)
 
+        print("Connected to API")
+
         async for message_json in websocket:
             message = json.loads(message_json)
             message_type = message["MessageType"]
@@ -40,5 +42,6 @@ async def connect_ais_stream():
                 # print(cum.read_gps(filename))
 
 if __name__ == "__main__":
-    ship_ids = ["247431200", "255806521", "352001287", "431301735", "357189000", "636016559", "311026700", "308416000"]
+    # ship_ids = ["247431200", "255806521", "352001287", "431301735", "357189000", "636016559", "311026700", "308416000"]
+    ship_ids = ["230625000", "246891000", "219027776", "636019921", "636021605", "626317000"]
     asyncio.run(connect_ais_stream())
