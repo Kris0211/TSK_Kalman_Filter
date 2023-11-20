@@ -62,6 +62,7 @@ def projection_size(route) -> tuple[float, float, float, float]:
     # delta_lon = max_lon - min_lat
 
     delta = max(max_lat - min_lat, max_lon - min_lat)
+    delta = max(delta, 10)
     margin = 0.2
 
     min_lat -= delta * margin
@@ -80,7 +81,7 @@ def draw_map(gps_route, kalman_route, physics_route):
     # perspective of satellite looking down at 50N, 100W.
     # use low resolution coastlines.
     min_lat, max_lat, min_lon, max_lon = projection_size(gps_route)
-    map = Basemap(projection='cea', llcrnrlat=min_lat, urcrnrlat=max_lat,
+    map = Basemap(projection='cyl', llcrnrlat=min_lat, urcrnrlat=max_lat,
                   llcrnrlon=min_lon,urcrnrlon=max_lon, resolution='l')
     # draw coastlines, country boundaries, fill continents.
     map.drawcoastlines(linewidth=0.25)
@@ -104,7 +105,7 @@ def draw_map(gps_route, kalman_route, physics_route):
     # x, y = map(lons * 180. / np.pi, lats * 180. / np.pi)
     # contour data over the map.
     # map.contour(x, y, wave + mean, 15, linewidths=1.5)
-    for i in range(0, len(gps_route) - 2):
+    for i in range(0, len(gps_route) - 1):
         map.drawgreatcircle(gps_route[i][0], gps_route[i][1], gps_route[i+1][0],
                             gps_route[i+1][1], linewidth=1.5, color='r')
     plt.title('Kalman Filter')
@@ -113,7 +114,7 @@ def draw_map(gps_route, kalman_route, physics_route):
 
 def main():
     asyncio.run(asyncio.run(connect_ais_stream()))
-    # draw_map()
+    # draw_map(test_coords, None, None)
 
 
 if __name__ == '__main__':
