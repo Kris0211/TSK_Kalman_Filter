@@ -10,6 +10,7 @@ import asyncio
 import websockets
 import json
 from datetime import datetime, timezone
+from kalman_filter import KalmanFilter
 import common_use_modules as cum
 
 APIKEY = os.environ['AISAPIKEY']
@@ -53,6 +54,12 @@ def knots_to_mps(knots) -> float:
 
 
 def projection_size(route) -> tuple[float, float, float, float]:
+
+    margin = 0.2
+
+    if len(route) == 1:
+        return route[0][1] - margin, route[0][1] + margin, route[0][0] - margin, route[0][0] + margin
+
     min_lat = min([x[1] for x in route])
     max_lat = max([x[1] for x in route])
     min_lon = min([x[0] for x in route])
@@ -61,14 +68,19 @@ def projection_size(route) -> tuple[float, float, float, float]:
     # delta_lat = max_lat - min_lat
     # delta_lon = max_lon - min_lat
 
-    delta = max(max_lat - min_lat, max_lon - min_lat)
-    delta = max(delta, 10)
-    margin = 0.2
+    delta = max(max_lat - min_lat, max_lon - min_lon)
+    # delta = max(delta, 5)
 
-    min_lat -= delta * margin
-    max_lat += delta * margin
-    min_lon -= delta * margin
-    max_lon += delta * margin
+    delta_lat = delta * margin
+    delta_lon = delta * margin
+
+    # delta_lat = max(delta_lat, 1)
+    # delta_lon = max(delta_lon, 1)
+
+    min_lat -= delta_lat
+    max_lat += delta_lat
+    min_lon -= delta_lon
+    max_lon += delta_lon
 
     min_lat = cum.clamp(min_lat, -90, 90)
     max_lat = cum.clamp(max_lat, -90, 90)
@@ -108,8 +120,37 @@ def draw_map(gps_route, kalman_route, physics_route):
     for i in range(0, len(gps_route) - 1):
         map.drawgreatcircle(gps_route[i][0], gps_route[i][1], gps_route[i+1][0],
                             gps_route[i+1][1], linewidth=1.5, color='r')
+    map.scatter([p[0] for p in gps_route], [p[1] for p in gps_route], marker='o', color='r')
     plt.title('Kalman Filter')
     plt.show()
+
+
+def _process(_delta):
+    F = np.array([[1, 0, _delta],  # lat
+                  [0, 1, _delta],  # lon
+                  [0, 0, 1,]])  # sog
+
+    H = np.array([[1, 0, 0],  # lat
+                  [0, 1, 0],  # lon
+                  [0, 0, 1]])  # speed
+
+    B = np.zeros((4, 1))
+
+    Q = np.eye(4)
+    R = np.eye(3)
+
+    x = np.array([[initial_latitude],
+                  [initial_longitude],
+                  [initial_sog]])
+
+    # stachu to jebnie
+    kf = KalmanFilter(state_transition=F, observation=H, control_input=B, process_noise=Q, observation_noise=R, state=x)
+    predicted_state = kf.predict(np.zeros((1, 1)))
+
+    measured_values = np.array([[measured_latitude],
+                                [measured_longitude],
+                                [measured_sog]])
+    kf.update(mean=measured_values)
 
 
 def main():
