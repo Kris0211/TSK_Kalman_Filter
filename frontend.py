@@ -44,7 +44,7 @@ def draw_map(gps_route, kalman_route, physics_route):
     gps_x = [row[0] for row in gps_route]
     gps_y = [row[1] for row in gps_route]
     map.plot(gps_x, gps_y, linewidth=1.5, color='r')
-    map.scatter([p[0] for p in gps_route], [p[1] for p in gps_route], marker=(), color='r', s=6)
+    map.scatter([p[0] for p in gps_route], [p[1] for p in gps_route], marker='o', color='r', s=6)
 
     plt.title('Kalman Filter')
     plt.show()
