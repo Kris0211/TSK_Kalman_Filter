@@ -33,10 +33,14 @@ async def connect_ais_stream():
                       f"Latitude: {ais_message['Latitude']} Longitude: {ais_message['Longitude']} "
                       f"SOG: {ais_message['Sog']} COG: {ais_message['Cog']}")
 
+                now = datetime.now()
                 a = np.asarray([ais_message['Longitude'],
                                 ais_message['Latitude'],
                                 ais_message['Sog'],
-                                ais_message['Cog']])
+                                ais_message['Cog'],
+                                now.hour,
+                                now.minute,
+                                now.second])
                 filename = "recordings/" + str(ais_message['UserID']) + ".gps"
                 cum.append_gps(filename, a)
                 # print(cum.read_gps(filename))

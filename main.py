@@ -1,17 +1,11 @@
 import os
-from typing import Tuple
 import numpy as np
-
-
-from marinetrafficapi import MarineTrafficApi
 import asyncio
 import websockets
 import json
 from datetime import datetime, timezone
-
 import frontend
-from kalman_filter import KalmanFilter
-import common_use_modules as cum
+
 
 APIKEY = os.environ['AISAPIKEY']
 
@@ -25,7 +19,6 @@ async def connect_ais_stream():
 
         subscribe_message_json = json.dumps(subscribe_message)
         await websocket.send(subscribe_message_json)
-
 
         async for message_json in websocket:
             message = json.loads(message_json)
@@ -44,10 +37,11 @@ async def connect_ais_stream():
 test_coords = [[0.0, 0.0], [12.0, -10.0], [15.0, -9.0], [25.0, -8.0], [30.0, -7.0]]
 
 
+# Kalman Filter, needs refactoring tho...
 def _process(_delta):
     F = np.array([[1, 0, _delta],  # lat
                   [0, 1, _delta],  # lon
-                  [0, 0, 1,]])  # sog
+                  [0, 0, 1]])  # sog
 
     H = np.array([[1, 0, 0],  # lat
                   [0, 1, 0],  # lon
@@ -62,7 +56,7 @@ def _process(_delta):
     #               [initial_longitude],
     #               [initial_sog]])
     #
-    # # stachu to jebnie
+    #
     # kf = KalmanFilter(state_transition=F, observation=H, control_input=B, process_noise=Q,
     #                   observation_noise=R, state=x)
     # predicted_state = kf.predict(np.zeros((1, 1)))

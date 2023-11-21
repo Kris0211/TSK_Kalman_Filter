@@ -1,33 +1,25 @@
 import numpy as np
 import tkinter as tk
+from tkinter import filedialog as fd
+from tkinter.messagebox import showwarning
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 import common_use_modules as utils
-
-#gps_route = []
-#kalman_route = []
-#physics_route = []
-
-def on_click():
-    if draw_measured.get():
-        print("owo")
-    if draw_kalman.get():
-        print("uwu")
-    if draw_physical.get():
-        print("nya")
-
-
-def draw():
-    print("haha nie.")
+from datetime import datetime
 
 
 def draw_map(gps_route, kalman_route, physics_route):
-    # set up orthographic map projection with
-    # perspective of satellite looking down at 50N, 100W.
-    # use low resolution coastlines.
-    min_lat, max_lat, min_lon, max_lon = projection_size(gps_route)
+    if gps_route is not None:
+        min_lat, max_lat, min_lon, max_lon = projection_size(gps_route)
+    elif kalman_route is not None:
+        min_lat, max_lat, min_lon, max_lon = projection_size(kalman_route)
+    elif physics_route is not None:
+        min_lat, max_lat, min_lon, max_lon = projection_size(physics_route)
+    else:
+        raise RuntimeError  # I don't know what went wrong but something went horribly wrong.
+
     map = Basemap(projection='cyl', llcrnrlat=min_lat, urcrnrlat=max_lat,
-                  llcrnrlon=min_lon,urcrnrlon=max_lon, resolution='h')
+                  llcrnrlon=min_lon, urcrnrlon=max_lon, resolution='h')
 
     # draw coastlines, country boundaries, fill continents.
     map.drawcoastlines(linewidth=0.25)
@@ -41,37 +33,44 @@ def draw_map(gps_route, kalman_route, physics_route):
     map.drawmeridians(np.arange(0, 360, 30))
     map.drawparallels(np.arange(-90, 90, 30))
 
-    gps_x = [row[0] for row in gps_route]
-    gps_y = [row[1] for row in gps_route]
-    map.plot(gps_x, gps_y, linewidth=1.5, color='r')
-    map.scatter([p[0] for p in gps_route], [p[1] for p in gps_route], marker='o', color='r', s=6)
+    if gps_route is not None:
+        plot_route(gps_route, 'r', map)
+
+    if kalman_route is not None:
+        plot_route(kalman_route, 'g', map)
+
+    if physics_route is not None:
+        plot_route(physics_route, 'y', map)
 
     plt.title('Kalman Filter')
     plt.show()
+
+
+def plot_route(route, color, map):
+    x = [row[0] for row in route]
+    y = [row[1] for row in route]
+    map.plot(x, y, linewidth=1.5, color=color)
+    map.scatter(x, y, marker='o', color=color, s=6)
 
 
 def projection_size(route) -> tuple[float, float, float, float]:
     margin = 0.4
 
     if len(route) == 1:
-        return route[0][1] - margin, route[0][1] + margin, route[0][0] - margin, route[0][0] + margin
+        return route[0][1] - margin,\
+                route[0][1] + margin, \
+                route[0][0] - margin, \
+                route[0][0] + margin
 
     min_lat = min([x[1] for x in route])
     max_lat = max([x[1] for x in route])
     min_lon = min([x[0] for x in route])
     max_lon = max([x[0] for x in route])
 
-    # delta_lat = max_lat - min_lat
-    # delta_lon = max_lon - min_lat
-
     delta = max(max_lat - min_lat, max_lon - min_lon)
-    # delta = max(delta, 5)
 
     delta_lat = delta * margin
     delta_lon = delta * margin
-
-    # delta_lat = max(delta_lat, 1)
-    # delta_lon = max(delta_lon, 1)
 
     min_lat -= delta_lat
     max_lat += delta_lat
@@ -84,6 +83,73 @@ def projection_size(route) -> tuple[float, float, float, float]:
     return min_lat, max_lat, min_lon, max_lon
 
 
+# Callback for tkinter button press
+def on_click():
+    if not draw_measured.get() and not draw_kalman.get() and not draw_physical.get():
+        showwarning(title="Warning", message="Select at least one option!")
+        return
+
+    filetypes = (
+        ('GPS files', '*.gps'),
+        ('All files', '*.*')
+    )
+
+    filename = fd.askopenfilename(
+        title='Open GPS data',
+        initialdir='.',
+        filetypes=filetypes)
+
+    data = utils.read_gps(filename)
+
+    gps_route, kalman_route, physics_route = None, None, None
+    if draw_measured.get():
+        gps_route = get_gps_route(data)
+
+    if draw_kalman.get():
+        kalman_route = get_kalman_route(data)
+
+    if draw_physical.get():
+        physics_route = get_physic_route(data)
+
+    draw_map(gps_route, kalman_route, physics_route)
+
+
+# Draws route based on received GPS position
+def get_gps_route(data):
+    return [[float(x[0]), float(x[1])] for x in data]
+
+
+# Draws route based on Kalman's filter predictions
+def get_kalman_route(data):
+    return [[]]
+
+
+# Draws route based on initial position and SOG+COG afterward.
+def get_physic_route(data):
+    positions = [p[0:1] for p in data]
+    sogs = [x[2] for x in data]
+    cogs = [x[3] for x in data]
+
+    # etoooo.... >.>
+    # we have no time ._.
+    # let's assume dt is 60 seconds...
+    dt = 60
+
+    route = [positions[0]]
+
+    prev_velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[0]), cogs[0])
+
+    for i in range(1, len(data)):
+        velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i])
+        acceleration = [(velocity[0] - prev_velocity[0]) / dt,
+                        (velocity[1] - prev_velocity[1]) / dt]
+        position = (positions[i]) + (velocity * dt) + (acceleration * dt)
+        prev_velocity = velocity
+        route.append(position)
+
+    return route
+
+
 if __name__ == '__main__':
     root = tk.Tk(screenName="kalman")
     title = tk.Label(root, text="Kalman's Filter for Ships:")
@@ -93,22 +159,19 @@ if __name__ == '__main__':
     draw_kalman = tk.BooleanVar()
     draw_physical = tk.BooleanVar()
 
-    ck1 = tk.Checkbutton(root, text='Draw Measured', variable=draw_measured, onvalue=True, offvalue=False,
-                         command=on_click)
+    ck1 = tk.Checkbutton(root, text='Draw Measured', variable=draw_measured, onvalue=True, offvalue=False)
     ck1.pack()
 
-    ck2 = tk.Checkbutton(root, text='Draw Kalman Prediction', variable=draw_kalman, onvalue=True, offvalue=False,
-                         command=on_click)
+    ck2 = tk.Checkbutton(root, text='Draw Kalman Prediction', variable=draw_kalman, onvalue=True, offvalue=False)
     ck2.pack()
 
-    ck3 = tk.Checkbutton(root, text='Draw Physics-Based', variable=draw_physical, onvalue=True, offvalue=False,
-                         command=on_click)
+    ck3 = tk.Checkbutton(root, text='Draw Physics-Based', variable=draw_physical, onvalue=True, offvalue=False)
     ck3.pack()
 
-    id_textbox = tk.Text(root, height=1)
-    id_textbox.pack()
-
-    button = tk.Button(text="Draw map", command=draw)
+    button = tk.Button(text="Load data and draw map", command=on_click)
     button.pack()
+
+    now = datetime.now()
+    print(now)
 
     root.mainloop()
