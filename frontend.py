@@ -141,18 +141,21 @@ def get_physic_route(data):
     prev_velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[0]), cogs[0])
 
     for i in range(1, len(data)):
-        velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i])
-        print(prev_position)
-        acceleration = [(velocity[0] - prev_velocity[0]) / dt,
-                        (velocity[1] - prev_velocity[1]) / dt]
-        position = prev_position + [velocity[0] * dt, velocity[1] * dt]
-        position += [acceleration[0] * dt * dt, acceleration[1] * dt * dt]
+        velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i] + i * 10)
+
+        position = utils.predict_physics_pos(prev_position, utils.knots_to_mps(sogs[i]), cogs[i], dt)
+
+        # print(prev_position)
+        # acceleration = [(velocity[0] - prev_velocity[0]) / dt,
+        #                 (velocity[1] - prev_velocity[1]) / dt]
+        # position = prev_position + [velocity[0] * dt, velocity[1] * dt]
+        # position += [acceleration[0] * dt * dt, acceleration[1] * dt * dt]
 
         prev_position = position
-        prev_velocity = velocity
+        # prev_velocity = velocity
 
         route.append(position)
-        print(position)
+        print(position, utils.knots_to_mps(sogs[i]), cogs[i])
 
     return route
 

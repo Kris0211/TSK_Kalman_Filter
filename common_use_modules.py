@@ -1,4 +1,4 @@
-from math import cos, sin
+from math import cos, sin, radians, pi
 
 import numpy as np
 
@@ -33,3 +33,15 @@ def append_gps(filename, arr,):
     file = open(filename, "ab")
     np.savetxt(file, arr, delimiter=",")
     file.close()
+
+
+def predict_physics_pos(start_pos, sog, cog, dt):
+    delta_x = sog * sin(radians(cog)) * dt
+    delta_y = sog * cos(radians(cog)) * dt
+
+    earth_radius = 6378137
+
+    lat = start_pos[1] + 180 / pi * delta_y / earth_radius
+    lon = start_pos[0] + 180 / pi / sin(radians(start_pos[1])) * delta_x / earth_radius
+
+    return np.array([lon, lat])
