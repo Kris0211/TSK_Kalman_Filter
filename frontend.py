@@ -126,7 +126,7 @@ def get_kalman_route(data):
 
 # Draws route based on initial position and SOG+COG afterward.
 def get_physic_route(data):
-    positions = [p[0:1] for p in data]
+    position = data[0][0:2]
     sogs = [x[2] for x in data]
     cogs = [x[3] for x in data]
 
@@ -135,17 +135,24 @@ def get_physic_route(data):
     # let's assume dt is 60 seconds...
     dt = 60
 
-    route = [positions[0]]
+    route = [position]
 
+    prev_position = position
     prev_velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[0]), cogs[0])
 
     for i in range(1, len(data)):
         velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i])
+        print(prev_position)
         acceleration = [(velocity[0] - prev_velocity[0]) / dt,
                         (velocity[1] - prev_velocity[1]) / dt]
-        position = (positions[i]) + (velocity * dt) + (acceleration * dt)
+        position = prev_position + [velocity[0] * dt, velocity[1] * dt]
+        position += [acceleration[0] * dt * dt, acceleration[1] * dt * dt]
+
+        prev_position = position
         prev_velocity = velocity
+
         route.append(position)
+        print(position)
 
     return route
 

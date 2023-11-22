@@ -13,7 +13,7 @@ def clamp(x, min, max):
 
 
 def get_velocity_vec(sog: float, cog: float):
-    return [sog * cos(cog), sog * sin(cog)]
+    return [sog * sin(cog), sog * cos(cog)]
 
 
 def knots_to_mps(knots: float) -> float:
@@ -22,7 +22,7 @@ def knots_to_mps(knots: float) -> float:
 
 def read_gps(filename) -> np.array:
     file = open(filename)
-    n = 7
+    n = 4
     l = np.fromfile(file, sep='\n')
     a = [l[i:i+n] for i in range(0, len(l), n)]
     file.close()
