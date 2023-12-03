@@ -1,3 +1,5 @@
+import tkinter
+
 import numpy as np
 import tkinter as tk
 from tkinter import filedialog as fd
@@ -6,6 +8,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 import common_use_modules as utils
 from datetime import datetime
+
+from kalman_filter import EzKalmanFilter
 
 
 def draw_map(gps_route, kalman_route, physics_route):
@@ -121,7 +125,24 @@ def get_gps_route(data):
 
 # Draws route based on Kalman's filter predictions
 def get_kalman_route(data):
-    return [[]]
+    position = data[0][0:2]
+    sogs = [x[2] for x in data]
+    cogs = [x[3] for x in data]
+
+    route = [position]
+    start_lin = utils.to_lin_pos(data[0][0:2])
+
+    kf = EzKalmanFilter(start_lin, utils.get_velocity_vec(utils.knots_to_mps(data[0][2]), data[0][3]), 1, 1)
+
+    for i in range(1, len(data)):
+        state, noise = kf.predict(60, utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i]))
+        route.append([state[0], state[1]])
+        lin_pos = utils.to_lin_pos([data[i][0], data[i][1]])
+        print(data[i][0:2])
+        print(lin_pos)
+        kf.update(lin_pos, 60)
+
+    return route
 
 
 # Draws route based on initial position and SOG+COG afterward.
@@ -130,18 +151,16 @@ def get_physic_route(data):
     sogs = [x[2] for x in data]
     cogs = [x[3] for x in data]
 
-    # etoooo.... >.>
-    # we have no time ._.
-    # let's assume dt is 60 seconds...
+    # assume dt is 60 seconds...
     dt = 60
 
     route = [position]
 
     prev_position = position
-    prev_velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[0]), cogs[0])
+    # prev_velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[0]), cogs[0])
 
     for i in range(1, len(data)):
-        velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i] + i * 10)
+        # velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i] + i * 10)
 
         position = utils.predict_physics_pos(prev_position, utils.knots_to_mps(sogs[i]), cogs[i], dt)
 
@@ -160,6 +179,7 @@ def get_physic_route(data):
     return route
 
 
+
 if __name__ == '__main__':
     root = tk.Tk(screenName="kalman")
     title = tk.Label(root, text="Kalman's Filter for Ships:")
@@ -168,6 +188,11 @@ if __name__ == '__main__':
     draw_measured = tk.BooleanVar()
     draw_kalman = tk.BooleanVar()
     draw_physical = tk.BooleanVar()
+    prediction_noise = tk.StringVar()
+    observation_noise = tk.StringVar()
+
+    prediction_noise.set(0.1)
+    observation_noise.set(3.0)
 
     ck1 = tk.Checkbutton(root, text='Draw Measured', variable=draw_measured, onvalue=True, offvalue=False)
     ck1.pack()
@@ -178,10 +203,18 @@ if __name__ == '__main__':
     ck3 = tk.Checkbutton(root, text='Draw Physics-Based', variable=draw_physical, onvalue=True, offvalue=False)
     ck3.pack()
 
+    l1 = tk.Label(root, text="Prediciton noise")
+    noise_spin1 = tk.Spinbox(root, from_=0.0, to=10.0, increment=0.1, format="%.1f", textvariable=prediction_noise)
+    l2 = tk.Label(root, text="Observation noise")
+    noise_spin2 = tk.Spinbox(root, from_=0.0, to=50.0, increment=0.1, format="%.1f", textvariable=observation_noise)
+    l1.pack()
+    noise_spin1.pack()
+    l2.pack()
+    noise_spin2.pack()
     button = tk.Button(text="Load data and draw map", command=on_click)
     button.pack()
 
     now = datetime.now()
-    print(now)
+    # print(now)
 
     root.mainloop()
