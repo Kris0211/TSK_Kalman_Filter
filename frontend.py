@@ -9,7 +9,7 @@ from mpl_toolkits.basemap import Basemap
 import common_use_modules as utils
 from datetime import datetime
 
-from kalman_filter import EzKalmanFilter
+from kalman_filter import EzKalmanFilter, KalmanFilter
 
 
 def draw_map(gps_route, kalman_route, physics_route):
@@ -132,7 +132,7 @@ def get_kalman_route(data):
     route = [position]
     start_lin = utils.to_plane_pos(data[0][0:2])
 
-    kf = EzKalmanFilter(start_lin, utils.get_velocity_vec(utils.knots_to_mps(data[0][2]), data[0][3]), 1, 3)
+    kf = KalmanFilter(start_lin, utils.get_velocity_vec(utils.knots_to_mps(data[0][2]), data[0][3]), float(observation_noise.get()), float(prediction_noise.get()))
 
     for i in range(1, len(data)):
         state, noise = kf.predict(60, utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i]))

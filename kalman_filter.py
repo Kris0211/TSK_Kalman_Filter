@@ -59,7 +59,7 @@ class EzKalmanFilter:
 
         return self.state, self.estimate_covariance
 
-    def update(self, observation: np.ndarray, delta_time: float):
+    def update(self, observation: np.ndarray):
         kalman_gain = np.matmul(self.observation_model, self.estimate_covariance)
         kalman_gain = np.matmul(kalman_gain, self.observation_model.T)
         kalman_gain += self.observation_noise
