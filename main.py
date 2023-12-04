@@ -1,11 +1,8 @@
 import os
-import numpy as np
 import asyncio
 import websockets
 import json
 from datetime import datetime, timezone
-import frontend
-
 
 APIKEY = os.environ['AISAPIKEY']
 
@@ -31,40 +28,10 @@ async def connect_ais_stream():
                       f"Latitude: {ais_message['Latitude']} Longitude: {ais_message['Longitude']} "
                       f"SOG: {ais_message['Sog']} COG: {ais_message['Cog']}")
 
-                frontend.gps_route.append([ais_message['Longitude'], ais_message['Latitude']])
+                # frontend.gps_route.append([ais_message['Longitude'], ais_message['Latitude']])
 
 
 test_coords = [[0.0, 0.0], [12.0, -10.0], [15.0, -9.0], [25.0, -8.0], [30.0, -7.0]]
-
-
-# Kalman Filter, needs refactoring tho...
-def _process(_delta):
-    F = np.array([[1, 0, _delta],  # lat
-                  [0, 1, _delta],  # lon
-                  [0, 0, 1]])  # sog
-
-    H = np.array([[1, 0, 0],  # lat
-                  [0, 1, 0],  # lon
-                  [0, 0, 1]])  # speed
-
-    B = np.zeros((3, 1))
-
-    Q = np.eye(3)
-    R = np.eye(3)
-
-    # x = np.array([[initial_latitude],
-    #               [initial_longitude],
-    #               [initial_sog]])
-    #
-    #
-    # kf = KalmanFilter(state_transition=F, observation=H, control_input=B, process_noise=Q,
-    #                   observation_noise=R, state=x)
-    # predicted_state = kf.predict(np.zeros((1, 1)))
-    #
-    # measured_values = np.array([[measured_latitude],
-    #                             [measured_longitude],
-    #                             [measured_sog]])
-    # kf.update(mean=measured_values)
 
 
 def main():

@@ -130,17 +130,19 @@ def get_kalman_route(data):
     cogs = [x[3] for x in data]
 
     route = [position]
-    start_lin = utils.to_lin_pos(data[0][0:2])
+    start_lin = utils.to_plane_pos(data[0][0:2])
 
-    kf = EzKalmanFilter(start_lin, utils.get_velocity_vec(utils.knots_to_mps(data[0][2]), data[0][3]), 1, 1)
+    kf = EzKalmanFilter(start_lin, utils.get_velocity_vec(utils.knots_to_mps(data[0][2]), data[0][3]), 1, 3)
 
     for i in range(1, len(data)):
         state, noise = kf.predict(60, utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i]))
-        route.append([state[0], state[1]])
-        lin_pos = utils.to_lin_pos([data[i][0], data[i][1]])
+        print(state)
+        plane_gps_pos = utils.to_plane_pos(data[i][0:2])
+        route.append(utils.to_geo_pos(np.array([state[0], state[2], plane_gps_pos[2]])))
+        lin_pos = utils.to_plane_pos(data[i][0:2])
         print(data[i][0:2])
         print(lin_pos)
-        kf.update(lin_pos, 60)
+        kf.update(lin_pos[0:2], 60)
 
     return route
 
@@ -177,7 +179,6 @@ def get_physic_route(data):
         print(position, utils.knots_to_mps(sogs[i]), cogs[i])
 
     return route
-
 
 
 if __name__ == '__main__':
