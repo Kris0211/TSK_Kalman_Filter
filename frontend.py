@@ -13,6 +13,7 @@ from kalman_filter import EzKalmanFilter, KalmanFilter
 
 
 def draw_map(gps_route, kalman_route, physics_route):
+    print("Drawing map...")
     if gps_route is not None:
         min_lat, max_lat, min_lon, max_lon = projection_size(gps_route)
     elif kalman_route is not None:
@@ -107,12 +108,15 @@ def on_click():
 
     gps_route, kalman_route, physics_route = None, None, None
     if draw_measured.get():
+        print("Loading GPS route...")
         gps_route = get_gps_route(data)
 
     if draw_kalman.get():
+        print("Calculation kalman filter route...")
         kalman_route = get_kalman_route(data)
 
     if draw_physical.get():
+        print("Calculating physics route...")
         physics_route = get_physic_route(data)
 
     draw_map(gps_route, kalman_route, physics_route)
@@ -132,17 +136,15 @@ def get_kalman_route(data):
     route = [position]
     start_lin = utils.to_plane_pos(data[0][0:2])
 
-    kf = KalmanFilter(start_lin, utils.get_velocity_vec(utils.knots_to_mps(data[0][2]), data[0][3]), float(observation_noise.get()), float(prediction_noise.get()))
+    kf = KalmanFilter(start_lin, utils.get_velocity_vec(utils.knots_to_mps(data[0][2]), data[0][3]),
+                      float(prediction_noise.get()), float(observation_noise.get()), 60.0)
 
     for i in range(1, len(data)):
-        state, noise = kf.predict(60, utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i]))
-        print(state)
+        lin_pos = utils.to_plane_pos(data[i][0:2])
+        kf.update(lin_pos[0:2])
+        state = kf.predict(60, utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i]))
         plane_gps_pos = utils.to_plane_pos(data[i][0:2])
         route.append(utils.to_geo_pos(np.array([state[0], state[2], plane_gps_pos[2]])))
-        lin_pos = utils.to_plane_pos(data[i][0:2])
-        print(data[i][0:2])
-        print(lin_pos)
-        kf.update(lin_pos[0:2], 60)
 
     return route
 
@@ -159,24 +161,11 @@ def get_physic_route(data):
     route = [position]
 
     prev_position = position
-    # prev_velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[0]), cogs[0])
 
     for i in range(1, len(data)):
-        # velocity = utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i] + i * 10)
-
         position = utils.predict_physics_pos(prev_position, utils.knots_to_mps(sogs[i]), cogs[i], dt)
-
-        # print(prev_position)
-        # acceleration = [(velocity[0] - prev_velocity[0]) / dt,
-        #                 (velocity[1] - prev_velocity[1]) / dt]
-        # position = prev_position + [velocity[0] * dt, velocity[1] * dt]
-        # position += [acceleration[0] * dt * dt, acceleration[1] * dt * dt]
-
         prev_position = position
-        # prev_velocity = velocity
-
         route.append(position)
-        print(position, utils.knots_to_mps(sogs[i]), cogs[i])
 
     return route
 

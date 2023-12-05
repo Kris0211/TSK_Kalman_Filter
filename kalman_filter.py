@@ -73,35 +73,64 @@ class EzKalmanFilter:
 
 
 class KalmanFilter(object):
-    def __init__(self, state_transition=None, control_input=None, observation=None,
-                 process_noise=None, observation_noise=None, covariance=None, state=None):
-        if state_transition is None or observation is None:
-            raise ValueError
+    def __init__(self, position: np.ndarray, velocity: np.ndarray,
+                 prediction_noise: float, observation_noise: float, dt: float):
 
-        self.n = state_transition.shape[1]
-        self.m = observation.shape[1]
+        self.state = np.array([
+            position[0],
+            velocity[0],
+            position[1],
+            velocity[1]]
+        ).T
 
-        self.F = state_transition
-        self.H = observation
-        self.B = 0 if (control_input is None) else control_input
-        self.Q = np.eye(self.n) if (process_noise is None) else process_noise
-        self.R = np.eye(self.n) if (observation_noise is None) else observation_noise
-        self.P = np.eye(self.n) if (covariance is None) else covariance
-        self.x = np.zeros((self.n, 1)) if (state is None) else state
+        self.observation = np.array([
+            [1, 0, 0, 0],
+            [0, 0, 1, 0]
+        ])
 
-    def predict(self, control_vector=0):
-        # Predict state estimate
-        self.x = np.dot(self.F, self.x) + np.dot(self.B, control_vector)
+        self.transition_mat = np.array([
+            [1, dt, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, dt],
+            [0, 0, 0, 1]
+        ])
+
+        self.prediction_noise = np.array([
+            [0, 1, 0, 0],
+            [1, 1, 0, 0],
+            [0, 0, 0, 1],
+            [0, 0, 1, 1]
+        ]) * prediction_noise
+
+        self.observation_noise = np.array([
+            [1, 0],
+            [0, 1]
+        ]) * (observation_noise ** 2)
+
+        self.covariance = np.array([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
+
+    def predict(self, dt, velocity):
+        # Predict state
+        self.state[1] = velocity[0]
+        self.state[3] = velocity[1]
+        self.state = np.dot(self.transition_mat, self.state)
         # Predict covariance
-        self.P = np.dot(np.dot(self.F, self.P), self.F.T) + self.Q
-        return self.x
+        self.covariance = np.dot(np.dot(self.transition_mat, self.prediction_noise), self.transition_mat.T)
+        self.covariance += self.prediction_noise
+        return self.state
 
-    def update(self, observation_mean):
-        pre_fit_covariance = self.R + np.dot(self.H, np.dot(self.P, self.H.T))
-        kalman_gain = np.dot(np.dot(self.P, self.H.T), np.linalg.inv(pre_fit_covariance))
-        # Update state estimate
-        self.x = self.x + np.dot(kalman_gain, observation_mean - np.dot(self.H, self.x))
+    def update(self, observation):
+        pre_fit_covariance = self.observation_noise + np.dot(self.observation,
+                                                             np.dot(self.covariance, self.observation.T))
+        kalman_gain = np.dot(np.dot(self.covariance, self.observation.T), np.linalg.inv(pre_fit_covariance))
+        # Update state
+        self.state = self.state + np.dot(kalman_gain, observation - np.dot(self.observation, self.state))
         # Update covariance
-        self.P = np.dot(np.dot(np.eye(self.n) - np.dot(kalman_gain, self.H), self.P),
-                        (np.eye(self.n) - np.dot(kalman_gain, self.H)).T) + np.dot(np.dot(kalman_gain, self.R),
-                                                                                   kalman_gain.T)
+        self.covariance = self.covariance - np.dot(np.dot(kalman_gain, self.observation), self.covariance)
+        observation_delta = observation - np.dot(self.observation, self.state)
+        self.state += np.dot(kalman_gain, observation_delta)

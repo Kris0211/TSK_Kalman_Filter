@@ -5,7 +5,6 @@ import numpy as np
 
 earth_radius = 6378137
 
-
 def clamp(x, _min, _max):
     if x < _min:
         return _min
@@ -66,10 +65,5 @@ def to_geo_pos(point: np.ndarray):
     r = np.sqrt(np.sum(np.power(point, 2)))
     lon = math.degrees(np.arctan(point[1] / point[0]))
     lat = math.degrees(np.arcsin(point[2] / r))
-
-    # equator = 40075000
-    #
-    # lon = point[0] / (equator * 0.5) * 90.0
-    # lat = point[1] / equator * 90.0
 
     return np.array([lon, lat])
