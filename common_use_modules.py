@@ -5,6 +5,7 @@ import numpy as np
 
 earth_radius = 6378137
 
+
 def clamp(x, _min, _max):
     if x < _min:
         return _min

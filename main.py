@@ -1,45 +1,210 @@
-import os
-import asyncio
-import websockets
-import json
-from datetime import datetime, timezone
+import numpy as np
+import tkinter as tk
+from tkinter import filedialog as fd
+from tkinter.messagebox import showwarning
+import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
+import common_use_modules as utils
+from datetime import datetime
+
+from kalman_filter import KalmanFilter
 
 
-APIKEY = os.environ['AISAPIKEY']
+def draw_map(gps_route, kalman_route, physics_route):
+    print("Drawing map...")
+    if gps_route is not None:
+        min_lat, max_lat, min_lon, max_lon = projection_size(gps_route)
+    elif kalman_route is not None:
+        min_lat, max_lat, min_lon, max_lon = projection_size(kalman_route)
+    elif physics_route is not None:
+        min_lat, max_lat, min_lon, max_lon = projection_size(physics_route)
+    else:
+        raise RuntimeError  # I don't know what went wrong but something went horribly wrong.
+
+    map = Basemap(projection='cyl', llcrnrlat=min_lat, urcrnrlat=max_lat,
+                  llcrnrlon=min_lon, urcrnrlon=max_lon, resolution='h')
+
+    # draw coastlines, country boundaries, fill continents.
+    map.drawcoastlines(linewidth=0.25)
+    map.drawcountries(linewidth=0.25)
+    map.fillcontinents(color='coral', lake_color='aqua')
+
+    # draw the edge of the map projection region (the projection limb)
+    map.drawmapboundary(fill_color='aqua')
+
+    # draw lat/lon grid lines every 30 degrees.
+    map.drawmeridians(np.arange(0, 360, 30))
+    map.drawparallels(np.arange(-90, 90, 30))
+
+    if gps_route is not None:
+        plot_route(gps_route, 'r', map)
+
+    if kalman_route is not None:
+        plot_route(kalman_route, 'g', map)
+
+    if physics_route is not None:
+        plot_route(physics_route, 'y', map)
+
+    plt.title('Kalman Filter')
+    plt.show()
 
 
-async def connect_ais_stream():
-    async with websockets.connect("wss://stream.aisstream.io/v0/stream") as websocket:
-        subscribe_message = {
-            "APIKey": APIKEY,  # Required !
-            "BoundingBoxes": [[[-90, -180], [90, 180]]],  # Required!
-            "FiltersShipMMSI": ["368207620", "367719770", "211476060"],  # Optional
-            "FilterMessageTypes": ["PositionReport"]  # Optional
-        }
-
-        subscribe_message_json = json.dumps(subscribe_message)
-        await websocket.send(subscribe_message_json)
-
-        async for message_json in websocket:
-            message = json.loads(message_json)
-            message_type = message["MessageType"]
-
-            if message_type == "PositionReport":
-                # the message parameter contains a key of the message type which contains the message itself
-                ais_message = message['Message']['PositionReport']
-                print(f"[{datetime.now(timezone.utc)}] ShipId: {ais_message['UserID']} "
-                      f"Latitude: {ais_message['Latitude']} Longitude: {ais_message['Longitude']} "
-                      f"SOG: {ais_message['Sog']} COG: {ais_message['Cog']}")
-
-                # frontend.gps_route.append([ais_message['Longitude'], ais_message['Latitude']])
+def plot_route(route, color, map):
+    x = [row[0] for row in route]
+    y = [row[1] for row in route]
+    map.plot(x, y, linewidth=1.5, color=color)
+    map.scatter(x, y, marker='o', color=color, s=6)
 
 
-# test_coords = [[0.0, 0.0], [12.0, -10.0], [15.0, -9.0], [25.0, -8.0], [30.0, -7.0]]
+def projection_size(route) -> tuple[float, float, float, float]:
+    margin = 0.4
+
+    if len(route) == 1:
+        return route[0][1] - margin,\
+                route[0][1] + margin, \
+                route[0][0] - margin, \
+                route[0][0] + margin
+
+    min_lat = min([x[1] for x in route])
+    max_lat = max([x[1] for x in route])
+    min_lon = min([x[0] for x in route])
+    max_lon = max([x[0] for x in route])
+
+    delta = max(max_lat - min_lat, max_lon - min_lon)
+
+    delta_lat = delta * margin
+    delta_lon = delta * margin
+
+    min_lat -= delta_lat
+    max_lat += delta_lat
+    min_lon -= delta_lon
+    max_lon += delta_lon
+
+    min_lat = utils.clamp(min_lat, -90, 90)
+    max_lat = utils.clamp(max_lat, -90, 90)
+
+    return min_lat, max_lat, min_lon, max_lon
 
 
-def main():
-    asyncio.run(connect_ais_stream())
+# Callback for tkinter button press
+def on_click():
+    if not draw_measured.get() and not draw_kalman.get() and not draw_physical.get():
+        showwarning(title="Warning", message="Select at least one option!")
+        return
+
+    filetypes = (
+        ('GPS files', '*.gps'),
+        ('All files', '*.*')
+    )
+
+    filename = fd.askopenfilename(
+        title='Open GPS data',
+        initialdir='./recordings/',
+        filetypes=filetypes)
+
+    try:
+        data = utils.read_gps(filename)
+    except FileNotFoundError:
+        return
+
+    gps_route, kalman_route, physics_route = None, None, None
+    if draw_measured.get():
+        print("Loading GPS route...")
+        gps_route = get_gps_route(data)
+
+    if draw_kalman.get():
+        print("Calculation kalman filter route...")
+        kalman_route = get_kalman_route(data)
+
+    if draw_physical.get():
+        print("Calculating physics route...")
+        physics_route = get_physic_route(data)
+
+    draw_map(gps_route, kalman_route, physics_route)
+
+
+# Draws route based on received GPS position
+def get_gps_route(data):
+    return [[float(x[0]), float(x[1])] for x in data]
+
+
+# Draws route based on Kalman's filter predictions
+def get_kalman_route(data):
+    position = data[0][0:2]
+    sogs = [x[2] for x in data]
+    cogs = [x[3] for x in data]
+
+    route = [position]
+    start_lin = utils.to_plane_pos(data[0][0:2])
+
+    kf = KalmanFilter(start_lin, utils.get_velocity_vec(utils.knots_to_mps(data[0][2]), data[0][3]),
+                      float(prediction_noise.get()), float(observation_noise.get()), 60.0)
+
+    for i in range(1, len(data)):
+        lin_pos = utils.to_plane_pos(data[i][0:2])
+        kf.update(lin_pos[0:2])
+        state = kf.predict(60, utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i]))
+        plane_gps_pos = utils.to_plane_pos(data[i][0:2])
+        route.append(utils.to_geo_pos(np.array([state[0], state[2], plane_gps_pos[2]])))
+
+    return route
+
+
+# Draws route based on initial position and SOG+COG afterward.
+def get_physic_route(data):
+    position = data[0][0:2]
+    sogs = [x[2] for x in data]
+    cogs = [x[3] for x in data]
+
+    # assume dt is 60 seconds...
+    dt = 60
+
+    route = [position]
+
+    prev_position = position
+
+    for i in range(1, len(data)):
+        position = utils.predict_physics_pos(prev_position, utils.knots_to_mps(sogs[i]), cogs[i], dt)
+        prev_position = position
+        route.append(position)
+
+    return route
 
 
 if __name__ == '__main__':
-    main()
+    root = tk.Tk(screenName="kalman")
+    title = tk.Label(root, text="Kalman's Filter for Ships:")
+    title.pack()
+
+    draw_measured = tk.BooleanVar()
+    draw_kalman = tk.BooleanVar()
+    draw_physical = tk.BooleanVar()
+    prediction_noise = tk.StringVar()
+    observation_noise = tk.StringVar()
+
+    prediction_noise.set("0.1")
+    observation_noise.set("3.0")
+
+    ck1 = tk.Checkbutton(root, text='Draw Measured', variable=draw_measured, onvalue=True, offvalue=False)
+    ck1.pack()
+
+    ck2 = tk.Checkbutton(root, text='Draw Kalman Prediction', variable=draw_kalman, onvalue=True, offvalue=False)
+    ck2.pack()
+
+    ck3 = tk.Checkbutton(root, text='Draw Physics-Based', variable=draw_physical, onvalue=True, offvalue=False)
+    ck3.pack()
+
+    l1 = tk.Label(root, text="Prediction noise")
+    noise_spin1 = tk.Spinbox(root, from_=0.0, to=10.0, increment=0.1, format="%.1f", textvariable=prediction_noise)
+    l2 = tk.Label(root, text="Observation noise")
+    noise_spin2 = tk.Spinbox(root, from_=0.0, to=50.0, increment=0.1, format="%.1f", textvariable=observation_noise)
+    l1.pack()
+    noise_spin1.pack()
+    l2.pack()
+    noise_spin2.pack()
+    button = tk.Button(text="Load data and draw map", command=on_click)
+    button.pack()
+
+    now = datetime.now()
+
+    root.mainloop()

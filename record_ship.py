@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 from datetime import datetime, timezone
-import common_use_modules as cumco
+import common_use_modules as utils
 
 import numpy as np
 import websockets
@@ -33,19 +33,14 @@ async def connect_ais_stream():
                       f"Latitude: {ais_message['Latitude']} Longitude: {ais_message['Longitude']} "
                       f"SOG: {ais_message['Sog']} COG: {ais_message['Cog']}")
 
-                now = datetime.now()
                 a = np.asarray([ais_message['Longitude'],
                                 ais_message['Latitude'],
                                 ais_message['Sog'],
-                                ais_message['Cog'],
-                                now.hour,
-                                now.minute,
-                                now.second])
+                                ais_message['Cog']])
                 filename = "recordings/" + str(ais_message['UserID']) + ".gps"
-                cum.append_gps(filename, a)
+                utils.append_gps(filename, a)
                 # print(cum.read_gps(filename))
 
 if __name__ == "__main__":
-    # ship_ids = ["247431200", "255806521", "352001287", "431301735", "357189000", "636016559", "311026700", "308416000"]
     ship_ids = ["230625000", "246891000", "219027776", "636019921", "636021605", "626317000"]
     asyncio.run(connect_ais_stream())
