@@ -37,22 +37,22 @@ def draw_map(gps_route, kalman_route, physics_route):
     map.drawparallels(np.arange(-90, 90, 30))
 
     if gps_route is not None:
-        plot_route(gps_route, 'r', map)
-
-    if kalman_route is not None:
-        plot_route(kalman_route, 'g', map)
+        plot_route(gps_route, 'r', map, 3.0)
 
     if physics_route is not None:
-        plot_route(physics_route, 'y', map)
+        plot_route(physics_route, 'y', map, 3.0)
+
+    if kalman_route is not None:
+        plot_route(kalman_route, 'g', map, 1.5)
 
     plt.title('Kalman Filter')
     plt.show()
 
 
-def plot_route(route, color, map):
+def plot_route(route, color, map, width):
     x = [row[0] for row in route]
     y = [row[1] for row in route]
-    map.plot(x, y, linewidth=1.5, color=color)
+    map.plot(x, y, linewidth=width, color=color)
     map.scatter(x, y, marker='o', color=color, s=6)
 
 
@@ -141,11 +141,12 @@ def get_kalman_route(data):
                       float(prediction_noise.get()), float(observation_noise.get()), 60.0)
 
     for i in range(1, len(data)):
-        lin_pos = utils.to_plane_pos(data[i][0:2])
-        kf.update(lin_pos[0:2])
         state = kf.predict(60, utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i]))
         plane_gps_pos = utils.to_plane_pos(data[i][0:2])
+        lin_pos = utils.to_plane_pos(data[i][0:2])
+        kalman_gain, state = kf.update(lin_pos[0:2])
         route.append(utils.to_geo_pos(np.array([state[0], state[2], plane_gps_pos[2]])))
+        print(kalman_gain)
 
     return route
 
@@ -164,6 +165,7 @@ def get_physic_route(data):
     prev_position = position
 
     for i in range(1, len(data)):
+        # position = utils.predict_physics_pos(prev_position, utils.knots_to_mps(sogs[i]), cogs[i], dt)
         position = utils.predict_physics_pos(prev_position, utils.knots_to_mps(sogs[i]), cogs[i], dt)
         prev_position = position
         route.append(position)

@@ -54,12 +54,13 @@ class KalmanFilter(object):
         return self.state
 
     def update(self, observation):
-        pre_fit_covariance = self.observation_noise + np.dot(self.observation,
-                                                             np.dot(self.covariance, self.observation.T))
-        kalman_gain = np.dot(np.dot(self.covariance, self.observation.T), np.linalg.inv(pre_fit_covariance))
-        # Update state
-        self.state = self.state + np.dot(kalman_gain, observation - np.dot(self.observation, self.state))
+        kalman_gain = np.dot(np.dot(self.observation, self.covariance), self.observation.T)
+        kalman_gain += self.observation_noise
+        kalman_gain = np.dot(np.dot(self.covariance, self.observation.T), np.linalg.inv(kalman_gain))
         # Update covariance
         self.covariance = self.covariance - np.dot(np.dot(kalman_gain, self.observation), self.covariance)
+        # Update state
+        self.state = self.state + np.dot(kalman_gain, observation - np.dot(self.observation, self.state))
         observation_delta = observation - np.dot(self.observation, self.state)
         self.state += np.dot(kalman_gain, observation_delta)
+        return kalman_gain, self.state
