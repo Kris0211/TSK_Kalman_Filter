@@ -60,7 +60,5 @@ class KalmanFilter(object):
         # Update covariance
         self.covariance = self.covariance - np.dot(np.dot(kalman_gain, self.observation), self.covariance)
         # Update state
-        self.state = self.state + np.dot(kalman_gain, observation - np.dot(self.observation, self.state))
-        observation_delta = observation - np.dot(self.observation, self.state)
-        self.state += np.dot(kalman_gain, observation_delta)
-        return kalman_gain, self.state
+        self.state += np.dot(kalman_gain, observation - np.dot(self.observation, self.state))
+        return self.state

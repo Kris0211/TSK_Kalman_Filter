@@ -46,14 +46,6 @@ def predict_physics_pos(start_pos, sog, cog, dt):
 
     return np.array([lon, lat])
 
-    # plane_pos = to_plane_pos(start_pos)
-    # velocity = get_velocity_vec(knots_to_mps(sog), cog)
-    # plane_pos[0] += velocity[0] * dt
-    # plane_pos[1] += velocity[1] * dt
-    # geo_pos = to_geo_pos(plane_pos)
-    #
-    # return np.array([geo_pos[0], geo_pos[1]])
-
 
 
 def to_lin_pos(geo_pos):

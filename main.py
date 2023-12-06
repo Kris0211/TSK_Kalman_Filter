@@ -144,9 +144,9 @@ def get_kalman_route(data):
         state = kf.predict(60, utils.get_velocity_vec(utils.knots_to_mps(sogs[i]), cogs[i]))
         plane_gps_pos = utils.to_plane_pos(data[i][0:2])
         lin_pos = utils.to_plane_pos(data[i][0:2])
-        kalman_gain, state = kf.update(lin_pos[0:2])
+        state = kf.update(lin_pos[0:2])
         route.append(utils.to_geo_pos(np.array([state[0], state[2], plane_gps_pos[2]])))
-        print(kalman_gain)
+
 
     return route
 
